@@ -86,7 +86,9 @@ executable bch
                         aeson >= 1.4,
                         http-types >= 0.12,
                         wai >= 3.2,
-                        warp >= 3.3
+                        warp >= 3.3,
+                        servant-server >= 0.16,
+                        servant >= 0.16
 
   -- Directories containing source files.
   -- hs-source-dirs:

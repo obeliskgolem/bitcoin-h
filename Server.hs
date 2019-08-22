@@ -19,8 +19,8 @@ type RegisterAPI = "register" :> ReqBody '[JSON] Node :> Get '[JSON] Node
 
 nodes :: IORef [Node]
 
-server1 :: Server NodeAPI
-server1 = return nodes
+server1 :: [Node] -> Server NodeAPI
+server1 = return
 
 server2 :: Server NodeAPI
 server2 = return 
@@ -32,7 +32,7 @@ registerAPI :: Proxy RegisterAPI
 registerAPI = Proxy
 
 app1 :: Application
-app1 = serve nodeAPI server1
+app1 = serve nodeAPI (server1 nodes)
 
 app2 :: Application
 app2 = serve registerAPI server2
@@ -40,5 +40,7 @@ app2 = serve registerAPI server2
 runServer :: Int -> IO ()
 runServer port  = do
     putStrLn $ "bitcoin-h server running at port " ++ (show port)
-    run port app1
+    nodes <- newIORef ([] :: [Node])
+    n <- readIORef nodes
+    run port $ serve nodeAPI (server1 n)
     run port app2
