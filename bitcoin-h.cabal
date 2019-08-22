@@ -82,7 +82,11 @@ executable bch
                         Spock-core >=0.13,
                         reroute >= 0.5,
                         mtl >= 2.2.2,
-                        text >= 1.2.3.1
+                        text >= 1.2.3.1, 
+                        aeson >= 1.4,
+                        http-types >= 0.12,
+                        wai >= 3.2,
+                        warp >= 3.3
 
   -- Directories containing source files.
   -- hs-source-dirs:

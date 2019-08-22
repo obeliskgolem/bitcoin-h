@@ -1,29 +1,38 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 module MathOP where
 
-data IPAddress  = IPAddress String
-data Port       = Int
+import GHC.Generics
+import Data.Aeson
+
+-- data IPAddress  = IPAddress String deriving (Generic, Show)
+-- data Port       = Int deriving (Generic, Show)
 
 data Node = Node {
-    mkNodeID :: Int
-    mkNodeAddr :: IPAddress
-    mkNodePort :: Port
-}
+    mkNodeID :: Int,
+    mkNodeAddr :: String,
+    mkNodePort :: Int
+} deriving (Generic, Show)
+
+instance ToJSON Node
+instance FromJSON Node
 
 data Block = Block {
-    mkTransactions :: [Transaction]
+    mkTransactions :: [Transaction],
     mkMerkelTree :: MerkelTree
 }
 
 data BlockHeader = BlockHeader {
-    mkPrevHeader :: Word
-    mkTimestamp :: Word
-    mkMerkelRoot :: Word
+    mkPrevHeader :: Word,
+    mkTimestamp :: Word,
+    mkMerkelRoot :: Word,
     mkNonce :: Word
 }
 
 data Transaction = Transaction {
-    mkInputs :: [TxInput]
-    mkOutputs :: [TxOutput]
+    mkInputs :: [TxInput], 
+    mkOutputs :: [TxOutput], 
     mkSig :: Word
 }
 

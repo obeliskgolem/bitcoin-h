@@ -4,6 +4,6 @@ module Node where
 
 import MathOP
 
-runNode :: Port -> IO ()
+runNode :: Int -> IO ()
 runNode port  = do
-    putStrLn $ "bitcoin-h node running at port " ++ $ show port
+    putStrLn $ "bitcoin-h node running at port " ++ (show port)
