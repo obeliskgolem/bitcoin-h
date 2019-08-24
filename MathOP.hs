@@ -10,10 +10,10 @@ import Data.Aeson
 -- data Port       = Int deriving (Generic, Show)
 
 data Node = Node {
-    mkNodeID :: Int,
+    -- mkNodeID :: Int,
     mkNodeAddr :: String,
     mkNodePort :: Int
-} deriving (Generic, Show)
+} deriving (Generic, Show, Eq)
 
 instance ToJSON Node
 instance FromJSON Node

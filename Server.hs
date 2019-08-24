@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Server where
 
@@ -12,33 +13,52 @@ import Network.Wai
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
 
+import Data.IORef
+import GHC.Generics
+import Data.Aeson
 
-type NodeAPI = "nodes" :> Get '[JSON] [Node]
+import Control.Monad.Trans
+import Control.Concurrent
 
-type RegisterAPI = "register" :> ReqBody '[JSON] Node :> Get '[JSON] Node
 
-nodes :: IORef [Node]
+type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
+            :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
 
-server1 :: Server NodeAPI
-server1 = return nodes
+data RegisterStatus =   RegisterSuccess
+                    |   RegisterFailed
+                    deriving (Generic, Show)
+instance ToJSON RegisterStatus
+instance FromJSON RegisterStatus
 
-server2 :: Server NodeAPI
-server2 = return 
+server1 :: IORef [Node] -> Server ServerAPI
+server1 nodeList =      listnode nodeList
+                :<|>    register nodeList
 
-nodesAPI :: Proxy NodeAPI
-nodesAPI = Proxy
+    where   listnode :: IORef [Node] -> Handler [Node]
+            listnode nodeList = do
+                list <- liftIO $ readIORef nodeList
+                liftIO $ putStrLn (show list)
+                return list
 
-registerAPI :: Proxy RegisterAPI
-registerAPI = Proxy
+            register :: IORef [Node] -> Node -> Handler RegisterStatus
+            register nodeList node = do
+                list <- liftIO $ readIORef nodeList 
+                let s = if (node `elem` list) then list else (node:list)
+                liftIO $ putStrLn (show s)
+                liftIO $ writeIORef nodeList s
+                if (node `elem` s) then 
+                    return RegisterSuccess
+                else
+                    return RegisterFailed
 
-app1 :: Application
-app1 = serve nodeAPI server1
+serverAPI :: Proxy ServerAPI
+serverAPI = Proxy
 
-app2 :: Application
-app2 = serve registerAPI server2
+app1 :: IORef [Node] -> Application
+app1 nodeList = serve serverAPI (server1 nodeList)
 
 runServer :: Int -> IO ()
 runServer port  = do
-    putStrLn $ "bitcoin-h server running at port " ++ (show port)
-    run port app1
-    run port app2
+    putStrLn $ "bitcoin-h server api running at port " ++ (show port)
+    n <- newIORef []
+    run port (app1 n)
