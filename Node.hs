@@ -16,6 +16,20 @@ incommingTransaction :: IORef [Transaction]
 --  internal operations --
 initRegister :: IO ()
 
+verifyBlock :: Block -> Bool
+
+verifyTransaction :: Transaction -> Bool
+
+requestBlockViaHeader :: BlockHeader -> IO ()
+
+requestBlock :: Node -> IO ()
+
+requestFullChain :: Node -> IO ()
+
+respondRequest :: Node -> IO ()
+
+broadcastNode :: [Node] -> IO ()
+
 
 
 
