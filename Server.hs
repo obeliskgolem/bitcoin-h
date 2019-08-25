@@ -24,12 +24,6 @@ import Control.Concurrent
 type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
             :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
 
-data RegisterStatus =   RegisterSuccess
-                    |   RegisterFailed
-                    deriving (Generic, Show)
-instance ToJSON RegisterStatus
-instance FromJSON RegisterStatus
-
 server1 :: IORef [Node] -> Server ServerAPI
 server1 nodeList =      listnode nodeList
                 :<|>    register nodeList

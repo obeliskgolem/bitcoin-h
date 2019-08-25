@@ -18,6 +18,13 @@ data Node = Node {
 instance ToJSON Node
 instance FromJSON Node
 
+data RegisterStatus =   RegisterSuccess
+                    |   RegisterFailed
+                    deriving (Generic, Show)
+
+instance ToJSON RegisterStatus
+instance FromJSON RegisterStatus
+
 data Block = Block {
     mkTransactions :: [Transaction],
     mkMerkelTree :: MerkelTree
