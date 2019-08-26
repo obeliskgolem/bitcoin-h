@@ -11,6 +11,12 @@ nodeConfig = "node.config"
 difficulty :: Word
 difficulty = 0x00fffffffffffffff
 
+-- genesisBlockHeader :: BlockHeader
+
+
+-- genesisBlock :: Block
+-- genesisBlock = Block {mkHeader = genesis}
+
 --  test data           --
 
 
@@ -35,6 +41,18 @@ verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (mkhash (mkHe
         rootofmerkel :: MerkelTree -> Word
         rootofmerkel (MerkelBranch root a b) = root
         rootofmerkel _ = 0
+
+mining :: BlockHeader -> Word -> Word -> BlockHeader
+mining phead mroot nonce = if calculate 
+    then constructBH 
+    else mining phead mroot (nonce + 1)
+    where 
+        constructBH :: BlockHeader
+        constructBH = BlockHeader {mkPrevHeader = phead, mkMerkelRoot = mroot, mkNonce = nonce}
+
+        calculate :: Bool
+        calculate = (mkhash constructBH) < difficulty
+
 
 -- verifyTransaction :: Transaction -> Bool
 

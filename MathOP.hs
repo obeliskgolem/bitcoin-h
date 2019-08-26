@@ -35,8 +35,7 @@ data Block = Block {
 } deriving (Generic, Show)
 
 data BlockHeader = BlockHeader {
-    mkPrevHeader :: Word,
-    mkTimestamp :: Word,
+    mkPrevHeader :: BlockHeader,
     mkMerkelRoot :: Word,
     mkNonce :: Word
 } deriving (Generic, Show)
@@ -60,4 +59,4 @@ data TxOutput = TxOutput {
 } deriving (Generic, Show)
 
 mkhash :: (Show a) => a -> Word
-mkhash = read . toString . hash . fromString . show
+mkhash = read . toString . hash . fromString . show 
