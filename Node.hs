@@ -4,31 +4,49 @@ module Node where
 
 import MathOP
 
+--  global data         --
+nodeConfig :: String
+nodeConfig = "node.config"
+
+difficulty :: Word
+difficulty = 0x00fffffffffffffff
+
+--  test data           --
+
+
 --  date kept in a node --
-nodeList :: IORef [Node]
+-- nodeList :: IORef [Node]
 
-blockList :: IORef [Block]
+-- blockList :: IORef [Block]
 
-headerList :: IORef [BlockHeader]
+-- headerList :: IORef [BlockHeader]
 
-incommingTransaction :: IORef [Transaction]
+-- incommingTransaction :: IORef [Transaction]
 
 --  internal operations --
-initRegister :: IO ()
+-- initRegister :: IO ()
 
 verifyBlock :: Block -> Bool
+verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (mkhash (mkHeader b) < difficulty)
+    where
+        merkelroot :: Block -> Word
+        merkelroot block = mkMerkelRoot (mkHeader block)
 
-verifyTransaction :: Transaction -> Bool
+        rootofmerkel :: MerkelTree -> Word
+        rootofmerkel (MerkelBranch root a b) = root
+        rootofmerkel _ = 0
 
-requestBlockViaHeader :: BlockHeader -> IO ()
+-- verifyTransaction :: Transaction -> Bool
 
-requestBlock :: Node -> IO ()
+-- requestBlockViaHeader :: BlockHeader -> IO ()
 
-requestFullChain :: Node -> IO ()
+-- requestBlock :: Node -> IO ()
 
-respondRequest :: Node -> IO ()
+-- requestFullChain :: Node -> IO ()
 
-broadcastNode :: [Node] -> IO ()
+-- respondRequest :: Node -> IO ()
+
+-- broadcastNode :: [Node] -> IO ()
 
 
 

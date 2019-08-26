@@ -87,13 +87,10 @@ executable bch
                         http-types >= 0.12,
                         wai >= 3.2,
                         warp >= 3.3,
-<<<<<<< HEAD
-                        servant >= 0.16,
-                        servant-server >= 0.16
-=======
                         servant-server >= 0.16,
-                        servant >= 0.16
->>>>>>> ec38903be1fe41e4d21889b2d9b0ca55282c1f33
+                        servant >= 0.16,
+                        utf8-string >= 1.0,
+                        cryptohash-md5 >= 0.11
 
   -- Directories containing source files.
   -- hs-source-dirs:
