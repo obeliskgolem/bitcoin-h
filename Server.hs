@@ -20,30 +20,27 @@ import Data.Aeson
 import Control.Monad.Trans
 import Control.Concurrent
 
-
-type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
-            :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
-
 server1 :: IORef [Node] -> Server ServerAPI
 server1 nodeList =      listnode nodeList
                 :<|>    register nodeList
 
-    where   listnode :: IORef [Node] -> Handler [Node]
-            listnode nodeList = do
-                list <- liftIO $ readIORef nodeList
-                liftIO $ putStrLn (show list)
-                return list
+    where   
+        listnode :: IORef [Node] -> Handler [Node]
+        listnode nodeList = do
+            list <- liftIO $ readIORef nodeList
+            liftIO $ putStrLn (show list)
+            return list
 
-            register :: IORef [Node] -> Node -> Handler RegisterStatus
-            register nodeList node = do
-                list <- liftIO $ readIORef nodeList 
-                let s = if (node `elem` list) then list else (node:list)
-                liftIO $ putStrLn (show s)
-                liftIO $ writeIORef nodeList s
-                if (node `elem` s) then 
-                    return RegisterSuccess
-                else
-                    return RegisterFailed
+        register :: IORef [Node] -> Node -> Handler RegisterStatus
+        register nodeList node = do
+            list <- liftIO $ readIORef nodeList 
+            let s = if (node `elem` list) then list else (node:list)
+            liftIO $ putStrLn (show s)
+            liftIO $ writeIORef nodeList s
+            if (node `elem` s) then 
+                return RegisterSuccess
+            else
+                return RegisterFailed
 
 serverAPI :: Proxy ServerAPI
 serverAPI = Proxy

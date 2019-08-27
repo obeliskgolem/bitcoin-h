@@ -1,16 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
 
 module MathOP where
 
 import GHC.Generics
 import Data.Aeson
 
--- import Crypto.Hash.MD5
+import Servant
+import Servant.API
+
 import Data.Hashable
 
--- data IPAddress  = IPAddress String deriving (Generic, Show)
--- data Port       = Int deriving (Generic, Show)
+--  RESTful API             --
+type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
+            :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
 
 --  global data         --
 difficulty :: Int
@@ -45,33 +50,33 @@ data BlockHeader = BlockHeader {
     mkNonce :: Int
 } deriving (Generic, Show)
 
-instance Hashable BlockHeader
 
 data Transaction = Transaction {
     mkInputs :: [TxInput], 
     mkOutputs :: [TxOutput]
 } deriving (Generic, Show)
 
-instance Hashable Transaction
 
 data MerkelTree =   MerkelLeaf HashV
                 |   MerkelBranch HashV (MerkelTree) (MerkelTree)
                 deriving (Generic, Show)
 
-instance Hashable MerkelTree
 
 data TxInput = TxInput {
     mkInAddr :: String,
     mkInAmount :: Int
 } deriving (Generic, Show)
 
-instance Hashable TxInput
 
 data TxOutput = TxOutput {
     mkOutAddr :: String,
     mkOutAmount :: Int
 } deriving (Generic, Show)
 
+instance Hashable BlockHeader
+instance Hashable Transaction
+instance Hashable MerkelTree
+instance Hashable TxInput
 instance Hashable TxOutput
 
 
@@ -85,7 +90,7 @@ qualified n = if n < difficulty && n > 0
 qualifiedHash :: (Hashable a) => a -> Bool
 qualifiedHash k = qualified $ hash k
 
---  pure functions          --
+--  pure blockchain functions   --
 verifyBlock :: Block -> Bool
 verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (qualifiedHash (mkHeader b))
     where

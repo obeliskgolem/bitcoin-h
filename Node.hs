@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Node where
 
@@ -11,24 +10,32 @@ import Data.IORef
 import Control.Monad.Reader
 import Control.Monad
 
+import Servant
+import Servant.API
+import Servant.Client
 
---  global data         --
-nodeConfig :: String
-nodeConfig = "node.config"
+import Data.Aeson
 
+import Network.HTTP.Client          (newManager, defaultManagerSettings)
+
+--  global definitions          --
 data Env = Env {
     eServerPort :: Int
+    ,   eSelf :: Node
     ,   eNodes :: IORef [Node]
     ,   eBlocks :: IORef [Block]
     ,   eTransactions :: IORef [Transaction]
     ,   eUTXO :: IORef [TxOutput]
 } 
 
-newtype AppT m a 
-    = AppT 
-    { unAppT :: ReaderT Env m a 
-    } deriving (Functor, Applicative, Monad)
+--  restful API as a client     --
+api :: Proxy ServerAPI
+api = Proxy
 
+getNodes :: ClientM [Node]
+register :: Node -> ClientM RegisterStatus
+
+getNodes :<|> register = client api
 
 -- genesisBlockHeader :: BlockHeader
 
@@ -37,11 +44,14 @@ newtype AppT m a
 -- genesisBlock = Block {mkHeader = genesis}
 
 --  dealing with mutable data       --
-initRegister :: (MonadReader Env m, MonadIO m) => m ()
+initRegister :: (MonadIO m) => ReaderT Env m ()
 initRegister = do
-    -- env <- ask
-    -- eServerPort env 
-    liftIO $ putStrLn "registered"
+    env <- ask
+    manager' <- liftIO $ newManager defaultManagerSettings
+    result1 <- liftIO $ runClientM (register (eSelf env)) ((mkClientEnv manager' (BaseUrl Http "localhost" 19900 "")))
+    result2 <- liftIO $ runClientM getNodes ((mkClientEnv manager' (BaseUrl Http "localhost" 19900 "")))
+    liftIO $ print result1
+    liftIO $ print result2
 
 -- respondRequest :: Node -> IO ()
 
@@ -58,12 +68,6 @@ runNode port  = do
     tx <- newIORef ([] :: [Transaction])
     utxo <- newIORef ([] :: [TxOutput])
 
-    let env = Env {
-        eServerPort = 19900
-        , eNodes = nodes
-        , eBlocks = blocks
-        , eTransactions = tx
-        , eUTXO = utxo
-    }
+    let env = Env 19900 (Node "localhost" port) nodes blocks tx utxo
 
-    initRegister
+    runReaderT initRegister env
