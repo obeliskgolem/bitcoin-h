@@ -3,6 +3,8 @@
 module Node where
 
 import MathOP
+import Data.Hashable
+
 
 --  global data         --
 nodeConfig :: String
@@ -27,9 +29,8 @@ nodeConfig = "node.config"
 
 -- unspentMoney :: IORef [TxOutput]
 
---  internal operations --
--- initRegister :: IO ()
 
+--  pure functions          --
 verifyBlock :: Block -> Bool
 verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (qualifiedHash (mkHeader b))
     where
@@ -64,16 +65,25 @@ verifyTransaction Transaction{mkInputs=txin, mkOutputs=txout} utxo = checkUTXO &
             else seekUTXO tin xs
         seekUTXO _ [] = False
 
--- generateMerkelTree :: [Transaction] -> MerkelTree
--- generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
---     where
---         genMTree :: [MerkelTree] -> MerkelTree
---         genMTree (x:[]) = x
---         genMTree 
+generateMerkelTree :: [Transaction] -> MerkelTree
+generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
+    where
+        genMTree :: [MerkelTree] -> MerkelTree
+        genMTree [] = MerkelLeaf (hash ([] :: [MerkelTree]))
+        genMTree (x:[]) = x
+        genMTree xs = genMTree (genPairs xs)
 
--- requestBlockViaHeader :: BlockHeader -> IO ()
+        genPairs :: [MerkelTree] -> [MerkelTree]
+        genPairs (a:b:xs) = (MerkelBranch (hash (hash a + hash b)) a b : genPairs xs)
+        genPairs (x:[]) = [MerkelBranch (hash (hash x + hash x)) x x]
+        genPairs [] = []
 
--- requestBlock :: Node -> IO ()
+--  dealing with mutable data       --
+--  initRegister :: IO ()
+
+requestBlock :: [Node] -> IO ()
+requestBlock nodes = do
+    
 
 -- requestFullChain :: Node -> IO ()
 
@@ -81,9 +91,21 @@ verifyTransaction Transaction{mkInputs=txin, mkOutputs=txout} utxo = checkUTXO &
 
 -- broadcastNode :: [Node] -> IO ()
 
+--  test data               --
+testInput1 = TxInput{mkInAddr = "Shanghai", mkInAmount = 10}
+testInput2 = TxInput{mkInAddr = "Guangzhou", mkInAmount = 20}
+testInput3 = TxInput{mkInAddr = "Beijing", mkInAmount = 50}
 
+testOutput1 = TxOutput{mkOutAddr = "Shanghai", mkOutAmount = 10}
+testOutput2 = TxOutput{mkOutAddr = "Beijing", mkOutAmount = 20}
+testOutput3 = TxOutput{mkOutAddr = "Guangzhou", mkOutAmount = 30}
 
+testTransaction =   [Transaction{mkInputs = [testInput1], mkOutputs = [testOutput1]}
+                    , Transaction{mkInputs = [testInput2], mkOutputs = [testOutput2]}
+                    , Transaction{mkInputs = [testInput3], mkOutputs = [testOutput3]}
+                    ]
 
+--  serving as node         --
 runNode :: Int -> IO ()
 runNode port  = do
     putStrLn $ "bitcoin-h node running at port " ++ (show port)
