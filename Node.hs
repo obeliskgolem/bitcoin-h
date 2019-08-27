@@ -8,8 +8,6 @@ import MathOP
 nodeConfig :: String
 nodeConfig = "node.config"
 
-difficulty :: Word
-difficulty = 0x00fffffffffffffff
 
 -- genesisBlockHeader :: BlockHeader
 
@@ -25,24 +23,24 @@ difficulty = 0x00fffffffffffffff
 
 -- blockList :: IORef [Block]
 
--- headerList :: IORef [BlockHeader]
-
 -- incommingTransaction :: IORef [Transaction]
+
+-- unspentMoney :: IORef [TxOutput]
 
 --  internal operations --
 -- initRegister :: IO ()
 
 verifyBlock :: Block -> Bool
-verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (mkhash (mkHeader b) < difficulty)
+verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (qualifiedHash (mkHeader b))
     where
-        merkelroot :: Block -> Word
+        merkelroot :: Block -> HashV
         merkelroot block = mkMerkelRoot (mkHeader block)
 
-        rootofmerkel :: MerkelTree -> Word
+        rootofmerkel :: MerkelTree -> HashV
         rootofmerkel (MerkelBranch root a b) = root
         rootofmerkel _ = 0
 
-mining :: BlockHeader -> Word -> Word -> BlockHeader
+mining :: BlockHeader -> HashV -> Int -> BlockHeader
 mining phead mroot nonce = if calculate 
     then constructBH 
     else mining phead mroot (nonce + 1)
@@ -51,10 +49,27 @@ mining phead mroot nonce = if calculate
         constructBH = BlockHeader {mkPrevHeader = phead, mkMerkelRoot = mroot, mkNonce = nonce}
 
         calculate :: Bool
-        calculate = (mkhash constructBH) < difficulty
+        calculate = qualifiedHash constructBH 
 
+verifyTransaction :: Transaction -> [TxOutput] -> Bool
+verifyTransaction Transaction{mkInputs=txin, mkOutputs=txout} utxo = checkUTXO && checkAmount
+    where
+        checkAmount = ((foldl (+) 0 (map mkInAmount txin)) - (foldl (+) 0 (map mkOutAmount txout))) >= 0
 
--- verifyTransaction :: Transaction -> Bool
+        checkUTXO = foldl (&&) True (map (`seekUTXO` utxo) txin)
+
+        seekUTXO :: TxInput -> [TxOutput] -> Bool
+        seekUTXO tin (x:xs) = if (mkInAddr tin == mkOutAddr x) && (mkInAmount tin == mkOutAmount x)
+            then True
+            else seekUTXO tin xs
+        seekUTXO _ [] = False
+
+-- generateMerkelTree :: [Transaction] -> MerkelTree
+-- generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
+--     where
+--         genMTree :: [MerkelTree] -> MerkelTree
+--         genMTree (x:[]) = x
+--         genMTree 
 
 -- requestBlockViaHeader :: BlockHeader -> IO ()
 

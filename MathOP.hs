@@ -6,14 +6,20 @@ module MathOP where
 import GHC.Generics
 import Data.Aeson
 
-import Crypto.Hash.MD5
+-- import Crypto.Hash.MD5
+import Data.Hashable
 import Data.ByteString.UTF8
 
 -- data IPAddress  = IPAddress String deriving (Generic, Show)
 -- data Port       = Int deriving (Generic, Show)
 
+--  global data         --
+difficulty :: Int
+difficulty = maxBound :: Int
+
+type HashV = Int
+
 data Node = Node {
-    -- mkNodeID :: Int,
     mkNodeAddr :: String,
     mkNodePort :: Int
 } deriving (Generic, Show, Eq)
@@ -36,27 +42,46 @@ data Block = Block {
 
 data BlockHeader = BlockHeader {
     mkPrevHeader :: BlockHeader,
-    mkMerkelRoot :: Word,
-    mkNonce :: Word
+    mkMerkelRoot :: HashV,
+    mkNonce :: Int
 } deriving (Generic, Show)
+
+instance Hashable BlockHeader
 
 data Transaction = Transaction {
     mkInputs :: [TxInput], 
-    mkOutputs :: [TxOutput], 
-    mkSig :: Word
+    mkOutputs :: [TxOutput]
 } deriving (Generic, Show)
 
-data MerkelTree =   MerkelLeaf Word
-                |   MerkelBranch Word (MerkelTree) (MerkelTree)
+instance Hashable Transaction
+
+data MerkelTree =   MerkelLeaf HashV
+                |   MerkelBranch HashV (MerkelTree) (MerkelTree)
                 deriving (Generic, Show)
 
+instance Hashable MerkelTree
+
 data TxInput = TxInput {
-    mkInAddr :: Word
+    mkInAddr :: String,
+    mkInAmount :: Int
 } deriving (Generic, Show)
+
+instance Hashable TxInput
 
 data TxOutput = TxOutput {
-    mkOutAddr :: Word
+    mkOutAddr :: String,
+    mkOutAmount :: Int
 } deriving (Generic, Show)
 
-mkhash :: (Show a) => a -> Word
-mkhash = read . toString . hash . fromString . show 
+instance Hashable TxOutput
+
+
+--  global operations       --
+
+qualified :: HashV -> Bool
+qualified n = if n < difficulty && n > 0
+    then True
+    else False
+
+qualifiedHash :: (Hashable a) => a -> Bool
+qualifiedHash k = qualified $ hash k
