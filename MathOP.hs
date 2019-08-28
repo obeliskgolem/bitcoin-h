@@ -23,6 +23,11 @@ type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
 difficulty :: Int
 difficulty = maxBound :: Int
 
+genesisTransaction = [Transaction [] [TxOutput "Guangzhou" 100, TxOutput "shanghai" 100, TxOutput "Beijing" 100]]
+genesisMerkelTree = generateMerkelTree genesisTransaction
+genesisHeader = mining Genesis (getMerkelRoot genesisMerkelTree) 1
+genesisBlock = Block genesisHeader genesisTransaction genesisMerkelTree
+
 type HashV = Int
 
 data Node = Node {
@@ -41,7 +46,7 @@ instance ToJSON RegisterStatus
 instance FromJSON RegisterStatus
 
 data Block = Block {
-    mkHeader :: RealBlockHeader,
+    mkHeader :: BlockHeader,
     mkTransactions :: [Transaction],
     mkMerkelTree :: MerkelTree
 } deriving (Generic, Show)
@@ -49,24 +54,17 @@ data Block = Block {
 instance ToJSON Block
 instance FromJSON Block
 
--- data BlockHeader = BlockHeader {
---     mkPrevHeader :: BlockHeader,
---     mkMerkelRoot :: HashV,
---     mkNonce :: Int
--- } deriving (Generic, Show)
-
-data RealBlockHeader =  Genesis
-                    |   BlockHeader {
-                        mkPrevHeader :: RealBlockHeader,
+data BlockHeader =  Genesis
+                |   ChainedBlockHeader {
+                        mkPrevHeader :: BlockHeader,
                         mkMerkelRoot :: HashV,
-                        mkNonce :: Int 
+                        mkNonce :: Int
                     } deriving (Generic, Show)
 
-instance ToJSON RealBlockHeader
-instance FromJSON RealBlockHeader
 
--- instance ToJSON BlockHeader
--- instance FromJSON BlockHeader
+
+instance ToJSON BlockHeader
+instance FromJSON BlockHeader
 
 data Transaction = Transaction {
     mkInputs :: [TxInput], 
@@ -100,8 +98,7 @@ data TxOutput = TxOutput {
 instance ToJSON TxOutput
 instance FromJSON TxOutput
 
-instance Hashable RealBlockHeader
--- instance Hashable BlockHeader
+instance Hashable BlockHeader
 instance Hashable Transaction
 instance Hashable MerkelTree
 instance Hashable TxInput
@@ -111,23 +108,23 @@ instance Hashable TxOutput
 --  global operations       --
 
 qualified :: HashV -> Bool
-qualified n = if n < difficulty && n > 0
+qualified n = if n > 0
     then True
     else False
 
 qualifiedHash :: (Hashable a) => a -> Bool
-qualifiedHash k = qualified $ hash k
+qualifiedHash k = qualified $ hash $ show $ hash k
 
 --  pure blockchain functions   --
+getMerkelRoot :: MerkelTree -> HashV
+getMerkelRoot (MerkelLeaf a) = a
+getMerkelRoot (MerkelBranch h _ _) = h
+
 verifyBlock :: Block -> Bool
-verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (qualifiedHash (mkHeader b))
+verifyBlock b = (merkelroot b == getMerkelRoot (mkMerkelTree b)) && (qualifiedHash (mkHeader b))
     where
         merkelroot :: Block -> HashV
         merkelroot block = mkMerkelRoot (mkHeader block)
-
-        rootofmerkel :: MerkelTree -> HashV
-        rootofmerkel (MerkelBranch root a b) = root
-        rootofmerkel (MerkelLeaf root) = root
 
 mining :: BlockHeader -> HashV -> Int -> BlockHeader
 mining phead mroot nonce = if calculate 
@@ -135,7 +132,7 @@ mining phead mroot nonce = if calculate
     else mining phead mroot (nonce + 1)
     where 
         constructBH :: BlockHeader
-        constructBH = BlockHeader {mkPrevHeader = phead, mkMerkelRoot = mroot, mkNonce = nonce}
+        constructBH = ChainedBlockHeader {mkPrevHeader = phead, mkMerkelRoot = mroot, mkNonce = nonce}
 
         calculate :: Bool
         calculate = qualifiedHash constructBH 
