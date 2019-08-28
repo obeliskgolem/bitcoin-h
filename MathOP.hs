@@ -21,11 +21,12 @@ type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
 
 --  global data         --
 difficulty :: Int
-difficulty = maxBound :: Int
+difficulty =            0003372036854775807                
+-- maxBount :: Int ==   9223372036854775807
 
 genesisTransaction = [Transaction [] [TxOutput "Guangzhou" 100, TxOutput "shanghai" 100, TxOutput "Beijing" 100]]
 genesisMerkelTree = generateMerkelTree genesisTransaction
-genesisHeader = mining Genesis (getMerkelRoot genesisMerkelTree) 1
+genesisHeader = mining Genesis (getMerkelRoot genesisMerkelTree) 9675
 genesisBlock = Block genesisHeader genesisTransaction genesisMerkelTree
 
 type HashV = Int
@@ -108,12 +109,12 @@ instance Hashable TxOutput
 --  global operations       --
 
 qualified :: HashV -> Bool
-qualified n = if n > 0
+qualified n = if n < difficulty && n > 0
     then True
     else False
 
-qualifiedHash :: (Hashable a) => a -> Bool
-qualifiedHash k = qualified $ hash $ show $ hash k
+qualifiedHash :: (Hashable a, Show a) => a -> Bool
+qualifiedHash k = qualified $ hash $ show $ hash $ show k
 
 --  pure blockchain functions   --
 getMerkelRoot :: MerkelTree -> HashV
