@@ -41,7 +41,7 @@ instance ToJSON RegisterStatus
 instance FromJSON RegisterStatus
 
 data Block = Block {
-    mkHeader :: BlockHeader,
+    mkHeader :: RealBlockHeader,
     mkTransactions :: [Transaction],
     mkMerkelTree :: MerkelTree
 } deriving (Generic, Show)
@@ -49,14 +49,24 @@ data Block = Block {
 instance ToJSON Block
 instance FromJSON Block
 
-data BlockHeader = BlockHeader {
-    mkPrevHeader :: BlockHeader,
-    mkMerkelRoot :: HashV,
-    mkNonce :: Int
-} deriving (Generic, Show)
+-- data BlockHeader = BlockHeader {
+--     mkPrevHeader :: BlockHeader,
+--     mkMerkelRoot :: HashV,
+--     mkNonce :: Int
+-- } deriving (Generic, Show)
 
-instance ToJSON BlockHeader
-instance FromJSON BlockHeader
+data RealBlockHeader =  Genesis
+                    |   BlockHeader {
+                        mkPrevHeader :: RealBlockHeader,
+                        mkMerkelRoot :: HashV,
+                        mkNonce :: Int 
+                    } deriving (Generic, Show)
+
+instance ToJSON RealBlockHeader
+instance FromJSON RealBlockHeader
+
+-- instance ToJSON BlockHeader
+-- instance FromJSON BlockHeader
 
 data Transaction = Transaction {
     mkInputs :: [TxInput], 
@@ -90,7 +100,8 @@ data TxOutput = TxOutput {
 instance ToJSON TxOutput
 instance FromJSON TxOutput
 
-instance Hashable BlockHeader
+instance Hashable RealBlockHeader
+-- instance Hashable BlockHeader
 instance Hashable Transaction
 instance Hashable MerkelTree
 instance Hashable TxInput

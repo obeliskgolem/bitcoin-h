@@ -20,13 +20,14 @@ import Network.HTTP.Client          (newManager, defaultManagerSettings)
 
 --  global definitions          --
 data Env = Env {
-    eServerPort :: Int
+        eServerPort :: Int
     ,   eSelf :: Node
     ,   eNodes :: IORef [Node]
     ,   eBlocks :: IORef [Block]
     ,   eTransactions :: IORef [Transaction]
     ,   eUTXO :: IORef [TxOutput]
 } 
+
 
 
 --  restful API as a node     --
