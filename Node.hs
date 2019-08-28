@@ -28,34 +28,47 @@ data Env = Env {
     ,   eUTXO :: IORef [TxOutput]
 } 
 
---  restful API as a client     --
-api :: Proxy ServerAPI
-api = Proxy
+
+--  restful API as a node     --
+serverApi :: Proxy ServerAPI
+serverApi = Proxy
 
 getNodes :: ClientM [Node]
 register :: Node -> ClientM RegisterStatus
 
-getNodes :<|> register = client api
+getNodes :<|> register = client serverApi
 
--- genesisBlockHeader :: BlockHeader
+nodeApi :: Proxy NodeAPI
+nodeApi = Proxy
 
+getBlocks :: ClientM [Block]
 
--- genesisBlock :: Block
--- genesisBlock = Block {mkHeader = genesis}
+getBlocks = client nodeApi
+
+type AppM = ReaderT Env Handler
+
+server1 :: ServerT NodeAPI AppM 
+server1 = serveBlocks
+    where
+        serveBlocks :: AppM [Block]
+        serveBlocks = do
+            env <- ask
+            blocks <- liftIO $ readIORef (eBlocks env)
+            return blocks
 
 --  dealing with mutable data       --
 initRegister :: (MonadIO m) => ReaderT Env m ()
 initRegister = do
     env <- ask
     manager' <- liftIO $ newManager defaultManagerSettings
+
     result1 <- liftIO $ runClientM (register (eSelf env)) ((mkClientEnv manager' (BaseUrl Http "localhost" 19900 "")))
-    result2 <- liftIO $ runClientM getNodes ((mkClientEnv manager' (BaseUrl Http "localhost" 19900 "")))
     liftIO $ print result1
-    liftIO $ print result2
 
--- respondRequest :: Node -> IO ()
-
--- broadcastNode :: [Node] -> IO ()
+    result2 <- liftIO $ runClientM getNodes ((mkClientEnv manager' (BaseUrl Http "localhost" 19900 "")))
+    case result2 of
+        Left err    -> liftIO $ print err
+        Right nodes -> liftIO $ writeIORef (eNodes env) nodes
 
 
 --  serving as node         --

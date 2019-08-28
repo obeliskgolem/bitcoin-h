@@ -17,6 +17,8 @@ import Data.Hashable
 type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
             :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
 
+type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
+
 --  global data         --
 difficulty :: Int
 difficulty = maxBound :: Int
@@ -44,22 +46,32 @@ data Block = Block {
     mkMerkelTree :: MerkelTree
 } deriving (Generic, Show)
 
+instance ToJSON Block
+instance FromJSON Block
+
 data BlockHeader = BlockHeader {
     mkPrevHeader :: BlockHeader,
     mkMerkelRoot :: HashV,
     mkNonce :: Int
 } deriving (Generic, Show)
 
+instance ToJSON BlockHeader
+instance FromJSON BlockHeader
 
 data Transaction = Transaction {
     mkInputs :: [TxInput], 
     mkOutputs :: [TxOutput]
 } deriving (Generic, Show)
 
+instance ToJSON Transaction
+instance FromJSON Transaction
 
 data MerkelTree =   MerkelLeaf HashV
                 |   MerkelBranch HashV (MerkelTree) (MerkelTree)
                 deriving (Generic, Show)
+
+instance ToJSON MerkelTree
+instance FromJSON MerkelTree
 
 
 data TxInput = TxInput {
@@ -67,11 +79,16 @@ data TxInput = TxInput {
     mkInAmount :: Int
 } deriving (Generic, Show)
 
+instance ToJSON TxInput
+instance FromJSON TxInput
 
 data TxOutput = TxOutput {
     mkOutAddr :: String,
     mkOutAmount :: Int
 } deriving (Generic, Show)
+
+instance ToJSON TxOutput
+instance FromJSON TxOutput
 
 instance Hashable BlockHeader
 instance Hashable Transaction
@@ -99,7 +116,7 @@ verifyBlock b = (merkelroot b == rootofmerkel (mkMerkelTree b)) && (qualifiedHas
 
         rootofmerkel :: MerkelTree -> HashV
         rootofmerkel (MerkelBranch root a b) = root
-        rootofmerkel _ = 0
+        rootofmerkel (MerkelLeaf root) = root
 
 mining :: BlockHeader -> HashV -> Int -> BlockHeader
 mining phead mroot nonce = if calculate 
