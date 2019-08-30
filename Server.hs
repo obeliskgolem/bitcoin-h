@@ -14,8 +14,8 @@ import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
 
 import Data.IORef
-import GHC.Generics
 import Data.Aeson
+import GHC.Generics
 
 import Control.Monad.Trans
 import Control.Concurrent

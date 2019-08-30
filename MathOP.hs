@@ -10,6 +10,7 @@ import Data.Aeson
 
 import Servant
 import Servant.API
+import Servant.Client
 
 import Data.Hashable
 
@@ -18,18 +19,35 @@ type ServerAPI =    "nodes" :> Get '[JSON] [Node]
             :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
 
 type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
+            :<|>    "updateNode" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
+
+serverApi :: Proxy ServerAPI
+serverApi = Proxy
+
+getNodes :: ClientM [Node]
+register :: Node -> ClientM RegisterStatus
+
+getNodes :<|> register = client serverApi
+
+nodeApi :: Proxy NodeAPI
+nodeApi = Proxy
+
+getBlocks :: ClientM [Block]
+updateNodes :: Node -> ClientM RegisterStatus
+getBlocks :<|> updateNodes = client nodeApi
 
 --  global data         --
-difficulty :: Int
+type HashV = Int
+
+difficulty :: HashV
 difficulty =            0003372036854775807                
 -- maxBount :: Int ==   9223372036854775807
 
 genesisTransaction = [Transaction [] [TxOutput "Guangzhou" 100, TxOutput "shanghai" 100, TxOutput "Beijing" 100]]
 genesisMerkelTree = generateMerkelTree genesisTransaction
-genesisHeader = mining Genesis (getMerkelRoot genesisMerkelTree) 9675
+genesisHeader = ChainedBlockHeader Genesis (getMerkelRoot genesisMerkelTree) 9675
 genesisBlock = Block genesisHeader genesisTransaction genesisMerkelTree
 
-type HashV = Int
 
 data Node = Node {
     mkNodeAddr :: String,
@@ -50,7 +68,7 @@ data Block = Block {
     mkHeader :: BlockHeader,
     mkTransactions :: [Transaction],
     mkMerkelTree :: MerkelTree
-} deriving (Generic, Show)
+} deriving (Generic, Show, Eq)
 
 instance ToJSON Block
 instance FromJSON Block
@@ -60,7 +78,7 @@ data BlockHeader =  Genesis
                         mkPrevHeader :: BlockHeader,
                         mkMerkelRoot :: HashV,
                         mkNonce :: Int
-                    } deriving (Generic, Show)
+                    } deriving (Generic, Show, Eq)
 
 
 
@@ -70,14 +88,14 @@ instance FromJSON BlockHeader
 data Transaction = Transaction {
     mkInputs :: [TxInput], 
     mkOutputs :: [TxOutput]
-} deriving (Generic, Show)
+} deriving (Generic, Show, Eq)
 
 instance ToJSON Transaction
 instance FromJSON Transaction
 
 data MerkelTree =   MerkelLeaf HashV
                 |   MerkelBranch HashV (MerkelTree) (MerkelTree)
-                deriving (Generic, Show)
+                deriving (Generic, Show, Eq)
 
 instance ToJSON MerkelTree
 instance FromJSON MerkelTree
@@ -86,7 +104,7 @@ instance FromJSON MerkelTree
 data TxInput = TxInput {
     mkInAddr :: String,
     mkInAmount :: Int
-} deriving (Generic, Show)
+} deriving (Generic, Show, Eq)
 
 instance ToJSON TxInput
 instance FromJSON TxInput
@@ -94,7 +112,7 @@ instance FromJSON TxInput
 data TxOutput = TxOutput {
     mkOutAddr :: String,
     mkOutAmount :: Int
-} deriving (Generic, Show)
+} deriving (Generic, Show, Eq)
 
 instance ToJSON TxOutput
 instance FromJSON TxOutput
@@ -126,6 +144,14 @@ verifyBlock b = (merkelroot b == getMerkelRoot (mkMerkelTree b)) && (qualifiedHa
     where
         merkelroot :: Block -> HashV
         merkelroot block = mkMerkelRoot (mkHeader block)
+
+verifyBlockChain :: [Block] -> Bool
+verifyBlockChain bs = (foldl (&&) True (map verifyBlock bs)) && linked (reverse bs)
+        where
+            linked :: [Block] -> Bool
+            linked (a:b:xs)     = (mkPrevHeader (mkHeader a) == mkHeader b) && linked xs
+            linked (a:[])       = a == genesisBlock
+            linked []           = True
 
 mining :: BlockHeader -> HashV -> Int -> BlockHeader
 mining phead mroot nonce = if calculate 
