@@ -20,6 +20,7 @@ type ServerAPI =    "nodes" :> Get '[JSON] [Node]
 
 type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
             :<|>    "updateNode" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
+            :<|>    "updateBlocks" :> ReqBody '[JSON] Block :> Post '[JSON] RegisterStatus
 
 serverApi :: Proxy ServerAPI
 serverApi = Proxy
@@ -34,7 +35,8 @@ nodeApi = Proxy
 
 getBlocks :: ClientM [Block]
 updateNodes :: Node -> ClientM RegisterStatus
-getBlocks :<|> updateNodes = client nodeApi
+updateBlocks :: Node -> ClientM RegisterStatus
+getBlocks :<|> updateNodes :<|> updateBlocks = client nodeApi
 
 --  global data         --
 type HashV = Int

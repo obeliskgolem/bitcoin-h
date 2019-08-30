@@ -38,9 +38,13 @@ bServerURL = BaseUrl Http "localhost" 19900 ""
 --  restful API as a node     --
 type AppM = ReaderT Env Handler
 
+mServer :: Env -> AppM a -> Handler a
+mServer env server = runReaderT server env 
+
 server1 :: ServerT NodeAPI AppM 
 server1 =       serveBlocks
         :<|>    handlingNewNodes
+        :<|>    handlingNewBlocks
     where
         serveBlocks :: AppM [Block]
         serveBlocks = do
@@ -56,8 +60,17 @@ server1 =       serveBlocks
                 then return RegisterFailed
                 else do {liftIO $ writeIORef (eNodes env) (node:nodes) ; return RegisterFailed}
 
+        handlingNewBlocks :: Block -> AppM RegisterStatus
+        handlingNewNodes block = do
+            env <- ask
+            blocks <- liftIO $ readIORef (eBlocks env)
+            let newBlocks = blocks ++ (block:[])
+            if verifyBlockChain newBlocks
+                then do {liftIO $ writeIORef (eBlocks env) newBlocks ; return RegisterSuccess}
+                else return RegisterFailed
+                
 app1 :: Env -> Application
-app1 env = serve nodeApi $ runReaderT server1 env
+app1 s = serve nodeApi $ hoistServer nodeApi (mServer s) server1
 
 --  dealing with mutable data       --
 
@@ -113,4 +126,4 @@ runNode port  = do
     runReaderT initRegister env
     runReaderT getBlockChain env
 
-    run port app1
+    forkIO $ run port (app1 env)
