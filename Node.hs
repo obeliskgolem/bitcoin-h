@@ -45,6 +45,7 @@ server1 :: ServerT NodeAPI AppM
 server1 =       serveBlocks
         :<|>    handlingNewNodes
         :<|>    handlingNewBlocks
+        :<|>    handlingNewTransactions
     where
         serveBlocks :: AppM [Block]
         serveBlocks = do
@@ -58,17 +59,26 @@ server1 =       serveBlocks
             nodes <- liftIO $ readIORef (eNodes env)
             if node `elem` nodes
                 then return RegisterFailed
-                else do {liftIO $ writeIORef (eNodes env) (node:nodes) ; return RegisterFailed}
+                else do 
+                    liftIO $ writeIORef (eNodes env) (node:nodes) 
+                    return RegisterFailed
 
         handlingNewBlocks :: Block -> AppM RegisterStatus
-        handlingNewNodes block = do
+        handlingNewBlocks block = do
             env <- ask
             blocks <- liftIO $ readIORef (eBlocks env)
             let newBlocks = blocks ++ (block:[])
             if verifyBlockChain newBlocks
-                then do {liftIO $ writeIORef (eBlocks env) newBlocks ; return RegisterSuccess}
+                then do 
+                    liftIO $ writeIORef (eBlocks env) newBlocks 
+                    return RegisterSuccess
                 else return RegisterFailed
                 
+        handlingNewTransactions :: Transaction -> AppM RegisterStatus
+        handlingNewTransactions tx = do
+            return RegisterFailed
+
+
 app1 :: Env -> Application
 app1 s = serve nodeApi $ hoistServer nodeApi (mServer s) server1
 
@@ -99,7 +109,9 @@ getBlockChain = do
     let longest = find ((== lengths) . length) validChains
 
     case longest of
-        Just chain  -> liftIO $ writeIORef (eBlocks env) chain
+        Just chain  -> do
+            liftIO $ writeIORef (eBlocks env) chain
+            liftIO $ writeIORef (eUTXO env) (calcChainUTXO chain)
         Nothing     -> liftIO $ putStrLn "no valid chains found"
     where
         getBlockChainVia :: Node -> IO [Block]
@@ -126,4 +138,4 @@ runNode port  = do
     runReaderT initRegister env
     runReaderT getBlockChain env
 
-    forkIO $ run port (app1 env)
+    run port (app1 env)

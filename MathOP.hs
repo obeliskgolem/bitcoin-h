@@ -21,6 +21,7 @@ type ServerAPI =    "nodes" :> Get '[JSON] [Node]
 type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
             :<|>    "updateNode" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
             :<|>    "updateBlocks" :> ReqBody '[JSON] Block :> Post '[JSON] RegisterStatus
+            :<|>    "newTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RegisterStatus
 
 serverApi :: Proxy ServerAPI
 serverApi = Proxy
@@ -35,8 +36,9 @@ nodeApi = Proxy
 
 getBlocks :: ClientM [Block]
 updateNodes :: Node -> ClientM RegisterStatus
-updateBlocks :: Node -> ClientM RegisterStatus
-getBlocks :<|> updateNodes :<|> updateBlocks = client nodeApi
+updateBlocks :: Block -> ClientM RegisterStatus
+newTransaction :: Transaction -> ClientM RegisterStatus
+getBlocks :<|> updateNodes :<|> updateBlocks :<|> newTransaction = client nodeApi
 
 --  global data         --
 type HashV = Int
@@ -119,6 +121,9 @@ data TxOutput = TxOutput {
 instance ToJSON TxOutput
 instance FromJSON TxOutput
 
+eqTx :: TxInput -> TxOutput -> Bool
+eqTx txin txout = (mkInAddr txin == mkOutAddr txout) && (mkInAmount txin == mkOutAmount txout)
+
 instance Hashable BlockHeader
 instance Hashable Transaction
 instance Hashable MerkelTree
@@ -171,6 +176,7 @@ verifyTransaction Transaction{mkInputs=txin, mkOutputs=txout} utxo = checkUTXO &
     where
         checkAmount = ((foldl (+) 0 (map mkInAmount txin)) - (foldl (+) 0 (map mkOutAmount txout))) >= 0
 
+        
         checkUTXO = foldl (&&) True (map (`seekUTXO` utxo) txin)
 
         seekUTXO :: TxInput -> [TxOutput] -> Bool
@@ -192,16 +198,9 @@ generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
         genPairs (x:[]) = [MerkelBranch (hash (hash x + hash x)) x x]
         genPairs [] = []
 
---  test data               --
-testInput1 = TxInput{mkInAddr = "Shanghai", mkInAmount = 10}
-testInput2 = TxInput{mkInAddr = "Guangzhou", mkInAmount = 20}
-testInput3 = TxInput{mkInAddr = "Beijing", mkInAmount = 50}
 
-testOutput1 = TxOutput{mkOutAddr = "Shanghai", mkOutAmount = 10}
-testOutput2 = TxOutput{mkOutAddr = "Beijing", mkOutAmount = 20}
-testOutput3 = TxOutput{mkOutAddr = "Guangzhou", mkOutAmount = 30}
+calcChainUTXO :: [Block] -> [TxOutput]
+calcChainUTXO blocks = join $ foldl (calcUTXO . mkTxInput . mkTransactions) [] blocks
 
-testTransaction =   [Transaction{mkInputs = [testInput1], mkOutputs = [testOutput1]}
-                    , Transaction{mkInputs = [testInput2], mkOutputs = [testOutput2]}
-                    , Transaction{mkInputs = [testInput3], mkOutputs = [testOutput3]}
-                    ]
+calcUTXO :: [TxOutput] -> [Transactions] -> [TxOutput]
+calcUTXO prev_utxo tx = 
