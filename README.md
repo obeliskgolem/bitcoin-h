@@ -1,4 +1,4 @@
-# bitcoin-h - a simple proof-of-concept haskell/blockchain implementation
+# bitcoin-h
 
 This simple project aims to implement the bitcoin system as a proof-of-concept.
 
