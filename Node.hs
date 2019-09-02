@@ -11,6 +11,7 @@ import Data.Either
 
 import Control.Monad.Reader
 import Control.Monad
+import Control.Concurrent
 
 import Network.Wai
 import Network.HTTP.Types
@@ -77,7 +78,14 @@ server1 =       serveBlocks
                 
         handlingNewTransactions :: Transaction -> AppM RegisterStatus
         handlingNewTransactions tx = do
-            return RegisterFailed
+            env <- ask
+            utxo <- liftIO $ readIORef (eUTXO env) 
+            trans <- liftIO $ readIORef (eTransactions env)
+            if (verifyTransaction tx utxo) && (isRight (calcUTXO utxo (tx:trans)))
+                then do
+                    liftIO $ writeIORef (eTransactions env) (tx:trans)
+                    return RegisterSuccess
+                else return RegisterFailed
 
 
 app1 :: Env -> Application
@@ -125,6 +133,25 @@ getBlockChain = do
                 Left err    -> do {putStrLn $ "Error while getting blocks: " ++ (show err); return []}
                 Right b     -> return b
 
+--  mine a block with current transactions
+mineBlock :: (MonadIO m) => ReaderT Env m ()
+mineBlock = do
+    env <- ask
+    trans <- liftIO $ readIORef (eTransactions env)
+    blocks <- liftIO $ readIORef (eBlocks env)
+    utxo <- liftIO $ readIORef (eUTXO env)
+    when (trans /= [] && blocks /= []) $ do
+        let t_tree = generateMerkelTree trans
+        let t_header = mining (mkHeader (last blocks)) (getMerkelRoot t_tree) 1
+        let t_node = Block t_header trans t_tree
+        liftIO $ writeIORef (eBlocks env) (blocks ++ [t_node])
+        liftIO $ writeIORef (eUTXO env) (fromRight [] (calcUTXO utxo trans))
+        liftIO $ writeIORef (eTransactions env) []
+        -- broadcastNode t_node
+
+--  mine a block with current transactions
+-- broadcastNode :: (MonadIO m) => ReaderT Env m ()
+
 --  serving as node         --
 runNode :: Int -> IO ()
 runNode port  = do
@@ -139,5 +166,7 @@ runNode port  = do
 
     runReaderT initRegister env
     runReaderT getBlockChain env
+
+    forever $ forkIO $ runReaderT mineBlock env
 
     run port (app1 env)
