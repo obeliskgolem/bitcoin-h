@@ -202,8 +202,8 @@ generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
 
 calcChainUTXO :: [TxOutput] -> [Block] -> Either NotValidTransaction [TxOutput]
 calcChainUTXO utxo [] = Right utxo
-calcChainUTXO _ (genesisBlock:blocks) = Right (foldl (++) [] (map (mkOutputs) (mkTransactions genesisBlock)))
-calcChainUTXO utxo (b:blocks) = (calcUTXO utxo (mkTransactions b)) >>= (`calcChainUTXO` blocks)
+calcChainUTXO utxo (b:blocks)   | b == genesisBlock = Right (foldl (++) [] (map (mkOutputs) (mkTransactions genesisBlock)))
+                                | otherwise         = (calcUTXO utxo (mkTransactions b)) >>= (`calcChainUTXO` blocks)
 
 data NotValidTransaction = NotValidTransaction deriving (Generic, Show)
 

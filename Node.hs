@@ -63,17 +63,18 @@ server1 =       serveBlocks
                 then return RegisterFailed
                 else do 
                     liftIO $ writeIORef (eNodes env) (node:nodes) 
-                    liftIO $ writeIORef (eTransactions env) []
                     return RegisterSuccess
 
         handlingNewBlocks :: Block -> AppM RegisterStatus
         handlingNewBlocks block = do
             env <- ask
             blocks <- liftIO $ readIORef (eBlocks env)
-            let newBlocks = blocks ++ (block:[])
+            let newBlocks = blocks ++ [block]
             if verifyBlockChain newBlocks
                 then do 
                     liftIO $ writeIORef (eBlocks env) newBlocks 
+                    liftIO $ writeIORef (eUTXO env) (fromRight [] (calcChainUTXO [] (newBlocks)))
+                    liftIO $ writeIORef (eTransactions env) []
                     return RegisterSuccess
                 else return RegisterFailed
                 
@@ -150,6 +151,7 @@ mineBlock = do
         liftIO $ writeIORef (eBlocks env) (blocks ++ [t_block])
         liftIO $ writeIORef (eUTXO env) (fromRight [] (calcUTXO utxo trans))
         liftIO $ writeIORef (eTransactions env) []
+        -- liftIO $ readIORef (eUTXO env) >>= putStrLn . show
         mapM_ (broadcastBlock t_block) nodes
         return ()
 
