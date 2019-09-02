@@ -38,22 +38,22 @@ server1 nodeList =      listnode nodeList
             liftIO $ putStrLn (show list)
             return list
 
-        register :: IORef [Node] -> Node -> Handler RegisterStatus
+        register :: IORef [Node] -> Node -> Handler RequestStatus
         register nodeList node = do
             list <- liftIO $ readIORef nodeList 
             let s = if (node `elem` list) then list else (node:list)
             liftIO $ writeIORef nodeList s
             if (node `notElem` list) then do
                 mapM_ (liftIO . (broadcastNode node)) list
-                return RegisterSuccess
+                return RequestSuccess
             else
-                return RegisterFailed
+                return RequestFailed
         
-        handlingNewTransaction :: IORef [Node] -> Transaction -> Handler RegisterStatus
+        handlingNewTransaction :: IORef [Node] -> Transaction -> Handler RequestStatus
         handlingNewTransaction nodeList tx = do
             list <- liftIO $ readIORef nodeList
             mapM_ (liftIO . (broadcastTransaction tx)) list
-            return RegisterSuccess
+            return RequestSuccess
 
 broadcastTransaction :: Transaction -> Node -> IO ()
 broadcastTransaction tx node = do

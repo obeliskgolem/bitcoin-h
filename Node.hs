@@ -55,17 +55,17 @@ server1 =       serveBlocks
             blocks <- liftIO $ readIORef (eBlocks env)
             return blocks
 
-        handlingNewNodes :: Node -> AppM RegisterStatus
+        handlingNewNodes :: Node -> AppM RequestStatus
         handlingNewNodes node = do
             env <- ask
             nodes <- liftIO $ readIORef (eNodes env)
             if node `elem` nodes
-                then return RegisterFailed
+                then return RequestFailed
                 else do 
                     liftIO $ writeIORef (eNodes env) (node:nodes) 
-                    return RegisterSuccess
+                    return RequestSuccess
 
-        handlingNewBlocks :: Block -> AppM RegisterStatus
+        handlingNewBlocks :: Block -> AppM RequestStatus
         handlingNewBlocks block = do
             env <- ask
             blocks <- liftIO $ readIORef (eBlocks env)
@@ -75,10 +75,10 @@ server1 =       serveBlocks
                     liftIO $ writeIORef (eBlocks env) newBlocks 
                     liftIO $ writeIORef (eUTXO env) (fromRight [] (calcChainUTXO [] (newBlocks)))
                     liftIO $ writeIORef (eTransactions env) []
-                    return RegisterSuccess
-                else return RegisterFailed
+                    return RequestSuccess
+                else return RequestFailed
                 
-        handlingNewTransactions :: Transaction -> AppM RegisterStatus
+        handlingNewTransactions :: Transaction -> AppM RequestStatus
         handlingNewTransactions tx = do
             env <- ask
             utxo <- liftIO $ readIORef (eUTXO env) 
@@ -86,8 +86,8 @@ server1 =       serveBlocks
             if (verifyTransaction tx utxo) && (isRight (calcUTXO utxo (tx:trans)))
                 then do
                     liftIO $ writeIORef (eTransactions env) (tx:trans)
-                    return RegisterSuccess
-                else return RegisterFailed
+                    return RequestSuccess
+                else return RequestFailed
 
 
 app1 :: Env -> Application

@@ -17,20 +17,20 @@ import Data.List
 
 --  RESTful API             --
 type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
-            :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
-            :<|>    "newTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RegisterStatus
+            :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RequestStatus
+            :<|>    "newTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RequestStatus
 
 type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
-            :<|>    "updateNodes" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
-            :<|>    "updateBlocks" :> ReqBody '[JSON] Block :> Post '[JSON] RegisterStatus
-            :<|>    "newServerTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RegisterStatus
+            :<|>    "updateNodes" :> ReqBody '[JSON] Node :> Post '[JSON] RequestStatus
+            :<|>    "updateBlocks" :> ReqBody '[JSON] Block :> Post '[JSON] RequestStatus
+            :<|>    "newServerTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RequestStatus
 
 serverApi :: Proxy ServerAPI
 serverApi = Proxy
 
 getNodes :: ClientM [Node]
-register :: Node -> ClientM RegisterStatus
-newTransaction :: Transaction -> ClientM RegisterStatus
+register :: Node -> ClientM RequestStatus
+newTransaction :: Transaction -> ClientM RequestStatus
 
 getNodes :<|> register :<|> newTransaction = client serverApi
 
@@ -38,9 +38,9 @@ nodeApi :: Proxy NodeAPI
 nodeApi = Proxy
 
 getBlocks :: ClientM [Block]
-updateNodes :: Node -> ClientM RegisterStatus
-updateBlocks :: Block -> ClientM RegisterStatus
-newServerTransaction :: Transaction -> ClientM RegisterStatus
+updateNodes :: Node -> ClientM RequestStatus
+updateBlocks :: Block -> ClientM RequestStatus
+newServerTransaction :: Transaction -> ClientM RequestStatus
 getBlocks :<|> updateNodes :<|> updateBlocks :<|> newServerTransaction = client nodeApi
 
 --  global data         --
@@ -64,12 +64,12 @@ data Node = Node {
 instance ToJSON Node
 instance FromJSON Node
 
-data RegisterStatus =   RegisterSuccess
-                    |   RegisterFailed
+data RequestStatus =   RequestSuccess
+                    |   RequestFailed
                     deriving (Generic, Show)
 
-instance ToJSON RegisterStatus
-instance FromJSON RegisterStatus
+instance ToJSON RequestStatus
+instance FromJSON RequestStatus
 
 data Block = Block {
     mkHeader :: BlockHeader,

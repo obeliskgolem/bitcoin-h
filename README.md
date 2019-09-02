@@ -2,21 +2,34 @@
 
 This simple project aims to implement the bitcoin system as a proof-of-concept.
 
-It depends heavily on the [Servant](http://hackage.haskell.org/package/servant) library to provide RESTful APIs for node/node, node/server communication
+Depends heavily on the [Servant](http://hackage.haskell.org/package/servant) library to provide RESTful APIs for node/node, node/server communication
 
 ## The Design
 
-TODOs
+Since a bitcoin-h node must maintain a running state of the whole blockchain, [the ReaderT pattern](https://www.fpcomplete.com/blog/2017/06/readert-design-pattern) is mainly applied in the node codes.
+
+Several important bitcoin concepts are **not** implemented here, including:
+- [ ] bitcoin fork
+- [ ] pay-to-public-key-hash, as well as other transaction validation methods
+- [ ] mining incentives
+
+Implemented concepts:
+- [x] Server/Node communication via web services
+- [x] Node register, block chain requesting
+- [x] transaction mining, new block broadcasting
+- [x] Merkel tree generation and validation
+- [x] a static computation difficulty
+- [x] other related stuff
 
 ## Usage
 
-For mocking bitcoin server, run
+For mocking bitcoin-h server, run
 ``` bash
 $ cabal new-build
 $ cabal new-run
 ```
 
-For mocking bitcoin nodes, run
+For mocking bitcoin-h nodes, run
 ``` bash
 $ cabal new-repl
 *Server> import Node
@@ -28,11 +41,15 @@ $ cabal new-repl
 
 ## APIs
 
-### Server API
-
-```
-/nodes
-```
+API | Method | Endpoints | Parameters | Return
+----| -------| --------- | ------------- | --- |
+Server | GET | /nodes | | [Nodes]
+Server | POST | /register | Node | Status
+Server | POST | /newTransaction | Transaction | Status
+Node | GET | /blocks | | [Blocks]
+Node | POST | /updateNodes | Node | Status
+Node | POST | /updateBlocks | Block | Status
+Node | POST | /newServerTransaction | Transaction | Status
 
 ## Examples
 
@@ -42,7 +59,7 @@ List all the nodes
 ``` bash
 $ curl --header "Content-Type: application/json" --request POST --data '{"mkInputs":[{"mkInAddr":"Shanghai","mkInAmount":40}],"mkOutputs":[{"mkOutAddr":"Guangzhou","mkOutAmount":10}, {"mkOutAddr":"Shanghai","mkOutAmount":30}]}' http://localhost:19900/newTransaction
 
-"RegisterSuccess"%
+"RequestSuccess"%
 ```
 
 Show the GenesisBlock
@@ -57,7 +74,7 @@ New Transaction
 ``` bash
 $ curl --header "Content-Type: application/json" --request POST --data '{"mkInputs":[{"mkInAddr":"Guangzhou","mkInAmount":100}],"mkOutputs":[{"mkOutAddr":"Guangzhou","mkOutAmount":50}, {"mkOutAddr":"Shanghai","mkOutAmount":40}]}' http://localhost:19900/newTransaction
 
-"RegisterSuccess"%
+"RequestSuccess"%
 ```
 
 Show the mined blocks
