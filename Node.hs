@@ -7,6 +7,7 @@ import MathOP
 -- import Data.Hashable
 import Data.IORef
 import Data.List
+import Data.Either
 
 import Control.Monad.Reader
 import Control.Monad
@@ -105,13 +106,14 @@ getBlockChain = do
     nodes <- liftIO $ readIORef (eNodes env)
     blocks <- liftIO $ mapM getBlockChainVia nodes
     let validChains = filter verifyBlockChain blocks
-    let lengths = maximum (map length validChains)
-    let longest = find ((== lengths) . length) validChains
+    let validTxChains = filter (isRight . (calcChainUTXO [])) validChains
+    let lengths = maximum (map length validTxChains)
+    let longest = find ((== lengths) . length) validTxChains
 
     case longest of
         Just chain  -> do
             liftIO $ writeIORef (eBlocks env) chain
-            liftIO $ writeIORef (eUTXO env) (calcChainUTXO chain)
+            liftIO $ writeIORef (eUTXO env) (fromRight [] (calcChainUTXO [] chain))
         Nothing     -> liftIO $ putStrLn "no valid chains found"
     where
         getBlockChainVia :: Node -> IO [Block]

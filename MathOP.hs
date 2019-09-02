@@ -13,6 +13,7 @@ import Servant.API
 import Servant.Client
 
 import Data.Hashable
+import Data.List
 
 --  RESTful API             --
 type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
@@ -172,18 +173,16 @@ mining phead mroot nonce = if calculate
         calculate = qualifiedHash constructBH 
 
 verifyTransaction :: Transaction -> [TxOutput] -> Bool
-verifyTransaction Transaction{mkInputs=txin, mkOutputs=txout} utxo = checkUTXO && checkAmount
+verifyTransaction tx@Transaction{mkInputs=txin, mkOutputs=txout} utxo = checkUTXO && checkAmount
     where
-        checkAmount = ((foldl (+) 0 (map mkInAmount txin)) - (foldl (+) 0 (map mkOutAmount txout))) >= 0
+        checkAmount = verifyTransactionAmount tx
 
+        checkUTXO = case (calcUTXO utxo [tx]) of
+            Left _  -> False
+            _       -> True
         
-        checkUTXO = foldl (&&) True (map (`seekUTXO` utxo) txin)
-
-        seekUTXO :: TxInput -> [TxOutput] -> Bool
-        seekUTXO tin (x:xs) = if (mkInAddr tin == mkOutAddr x) && (mkInAmount tin == mkOutAmount x)
-            then True
-            else seekUTXO tin xs
-        seekUTXO _ [] = False
+verifyTransactionAmount :: Transaction -> Bool
+verifyTransactionAmount tx = sum (map mkInAmount $ mkInputs tx) >= sum (map mkOutAmount $ mkOutputs tx)
 
 generateMerkelTree :: [Transaction] -> MerkelTree
 generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
@@ -199,8 +198,25 @@ generateMerkelTree tx = genMTree (map (MerkelLeaf . hash) tx)
         genPairs [] = []
 
 
-calcChainUTXO :: [Block] -> [TxOutput]
-calcChainUTXO blocks = join $ foldl (calcUTXO . mkTxInput . mkTransactions) [] blocks
+calcChainUTXO :: [TxOutput] -> [Block] -> Either NotValidTransaction [TxOutput]
+calcChainUTXO utxo [] = Right utxo
+calcChainUTXO _ (genesisBlock:blocks) = Right (foldl (++) [] (map (mkOutputs) (mkTransactions genesisBlock)))
+calcChainUTXO utxo (b:blocks) = (calcUTXO utxo (mkTransactions b)) >>= (`calcChainUTXO` blocks)
 
-calcUTXO :: [TxOutput] -> [Transactions] -> [TxOutput]
-calcUTXO prev_utxo tx = 
+data NotValidTransaction = NotValidTransaction
+
+calcUTXO :: [TxOutput] -> [Transaction] -> Either NotValidTransaction [TxOutput]
+calcUTXO txout []           = Right txout
+calcUTXO prev_utxo (t:tx)   = (prev_utxo `solveTx` t) >>= (`calcUTXO` tx)
+    where
+        solveTx :: [TxOutput] -> Transaction -> Either NotValidTransaction [TxOutput]
+        solveTx utxo t = (utxo `delBy` (mkInputs t)) >>= (`plusBy` t)
+
+        delBy :: [TxOutput] -> [TxInput] -> Either NotValidTransaction [TxOutput]
+        delBy utxo (t:txin) = case (find (t `eqTx`) utxo) of
+            Just a  -> delBy (delete a utxo) txin
+            Nothing -> Left NotValidTransaction
+
+        plusBy :: [TxOutput] -> Transaction -> Either NotValidTransaction [TxOutput]
+        plusBy utxo t = Right $ utxo ++ (mkOutputs t)
+        
