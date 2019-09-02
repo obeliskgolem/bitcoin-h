@@ -18,19 +18,21 @@ import Data.List
 --  RESTful API             --
 type ServerAPI =    "nodes" :> Get '[JSON] [Node] 
             :<|>    "register" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
+            :<|>    "newTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RegisterStatus
 
 type NodeAPI    =   "blocks" :> Get '[JSON] [Block]
-            :<|>    "updateNode" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
+            :<|>    "updateNodes" :> ReqBody '[JSON] Node :> Post '[JSON] RegisterStatus
             :<|>    "updateBlocks" :> ReqBody '[JSON] Block :> Post '[JSON] RegisterStatus
-            :<|>    "newTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RegisterStatus
+            :<|>    "newServerTransaction" :> ReqBody '[JSON] Transaction :> Post '[JSON] RegisterStatus
 
 serverApi :: Proxy ServerAPI
 serverApi = Proxy
 
 getNodes :: ClientM [Node]
 register :: Node -> ClientM RegisterStatus
+newTransaction :: Transaction -> ClientM RegisterStatus
 
-getNodes :<|> register = client serverApi
+getNodes :<|> register :<|> newTransaction = client serverApi
 
 nodeApi :: Proxy NodeAPI
 nodeApi = Proxy
@@ -38,8 +40,8 @@ nodeApi = Proxy
 getBlocks :: ClientM [Block]
 updateNodes :: Node -> ClientM RegisterStatus
 updateBlocks :: Block -> ClientM RegisterStatus
-newTransaction :: Transaction -> ClientM RegisterStatus
-getBlocks :<|> updateNodes :<|> updateBlocks :<|> newTransaction = client nodeApi
+newServerTransaction :: Transaction -> ClientM RegisterStatus
+getBlocks :<|> updateNodes :<|> updateBlocks :<|> newServerTransaction = client nodeApi
 
 --  global data         --
 type HashV = Int

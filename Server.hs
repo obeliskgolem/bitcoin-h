@@ -6,23 +6,30 @@
 module Server where
 
 import MathOP
+
 import Servant
 import Servant.API
+import Servant.Client
 
 import Network.Wai
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
 
 import Data.IORef
+import Data.List
+
 import Data.Aeson
 import GHC.Generics
 
+import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent
+import Network.HTTP.Client          (newManager, defaultManagerSettings)
 
 server1 :: IORef [Node] -> Server ServerAPI
 server1 nodeList =      listnode nodeList
                 :<|>    register nodeList
+                :<|>    handlingNewTransaction nodeList
 
     where   
         listnode :: IORef [Node] -> Handler [Node]
@@ -37,10 +44,29 @@ server1 nodeList =      listnode nodeList
             let s = if (node `elem` list) then list else (node:list)
             liftIO $ putStrLn (show s)
             liftIO $ writeIORef nodeList s
-            if (node `elem` s) then 
+            if (node `notElem` list) then do
+                mapM_ (liftIO . (broadcastNode node)) list
                 return RegisterSuccess
             else
                 return RegisterFailed
+        
+        handlingNewTransaction :: IORef [Node] -> Transaction -> Handler RegisterStatus
+        handlingNewTransaction nodeList tx = do
+            list <- liftIO $ readIORef nodeList
+            mapM_ (liftIO . (broadcastTransaction tx)) list
+            return RegisterSuccess
+
+broadcastTransaction :: Transaction -> Node -> IO ()
+broadcastTransaction tx node = do
+    manager' <- liftIO $ newManager defaultManagerSettings
+    runClientM (newServerTransaction tx) ((mkClientEnv manager' (makeBaseURL node)))
+    return ()
+
+broadcastNode :: Node -> Node -> IO ()
+broadcastNode newNode node = do
+    manager' <- liftIO $ newManager defaultManagerSettings
+    runClientM (updateNodes newNode) ((mkClientEnv manager' (makeBaseURL node)))
+    return ()
 
 serverAPI :: Proxy ServerAPI
 serverAPI = Proxy

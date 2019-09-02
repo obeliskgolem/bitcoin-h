@@ -4,7 +4,7 @@
 module Node where
 
 import MathOP
--- import Data.Hashable
+
 import Data.IORef
 import Data.List
 import Data.Either
@@ -63,7 +63,7 @@ server1 =       serveBlocks
                 then return RegisterFailed
                 else do 
                     liftIO $ writeIORef (eNodes env) (node:nodes) 
-                    return RegisterFailed
+                    return RegisterSuccess
 
         handlingNewBlocks :: Block -> AppM RegisterStatus
         handlingNewBlocks block = do
@@ -111,7 +111,8 @@ initRegister = do
 getBlockChain :: (MonadIO m) => ReaderT Env m ()
 getBlockChain = do
     env <- ask
-    nodes <- liftIO $ readIORef (eNodes env)
+    allNodes <- liftIO $ readIORef (eNodes env)
+    let nodes = delete (eSelf env) allNodes
     blocks <- liftIO $ mapM getBlockChainVia nodes
     let validChains = filter verifyBlockChain blocks
     let validTxChains = filter (isRight . (calcChainUTXO [])) validChains
@@ -142,28 +143,28 @@ mineBlock = do
     blocks <- liftIO $ readIORef (eBlocks env)
     utxo <- liftIO $ readIORef (eUTXO env)
     when (trans /= [] && blocks /= []) $ do
+        liftIO $ putStrLn $ "Mining " ++ (show $ head blocks)
         let t_tree = generateMerkelTree trans
         let t_header = mining (mkHeader (last blocks)) (getMerkelRoot t_tree) 1
         let t_block = Block t_header trans t_tree
         liftIO $ writeIORef (eBlocks env) (blocks ++ [t_block])
         liftIO $ writeIORef (eUTXO env) (fromRight [] (calcUTXO utxo trans))
         liftIO $ writeIORef (eTransactions env) []
-        mapM (broadcastNode t_block) nodes
+        mapM_ (broadcastNode t_block) nodes
         return ()
 
 --  mine a block with current transactions
 broadcastNode :: (MonadIO m) => Block -> Node -> ReaderT Env m ()
 broadcastNode newBlock node = do
     env <- ask
-    manager' <- liftIO $ newManager defaultManagerSettings
-    liftIO $ runClientM (updateBlocks newBlock) ((mkClientEnv manager' (makeBaseURL node)))
-    return ()
+    when (node /= (eSelf env)) $ do
+        manager' <- liftIO $ newManager defaultManagerSettings
+        liftIO $ runClientM (updateBlocks newBlock) ((mkClientEnv manager' (makeBaseURL node)))
+        return ()
 
 --  serving as node         --
 runNode :: Int -> IO ()
 runNode port  = do
-    putStrLn $ "bitcoin-h node running at port " ++ (show port)
-
     nodes <- newIORef ([] :: [Node])
     blocks <- newIORef ([genesisBlock])
     tx <- newIORef ([] :: [Transaction])
@@ -174,8 +175,12 @@ runNode port  = do
     runReaderT initRegister env
     runReaderT getBlockChain env
 
-    forever $ forkIO $ do
+    putStrLn "forked mining IO"
+
+    forkIO $ forever $ do
         threadDelay $ 1000000 * 30 
         runReaderT mineBlock env
+
+    putStrLn $ "bitcoin-h node running at port " ++ (show port)
 
     run port (app1 env)
