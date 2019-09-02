@@ -205,22 +205,23 @@ calcChainUTXO utxo [] = Right utxo
 calcChainUTXO _ (genesisBlock:blocks) = Right (foldl (++) [] (map (mkOutputs) (mkTransactions genesisBlock)))
 calcChainUTXO utxo (b:blocks) = (calcUTXO utxo (mkTransactions b)) >>= (`calcChainUTXO` blocks)
 
-data NotValidTransaction = NotValidTransaction
+data NotValidTransaction = NotValidTransaction deriving (Generic, Show)
 
 calcUTXO :: [TxOutput] -> [Transaction] -> Either NotValidTransaction [TxOutput]
 calcUTXO txout []           = Right txout
 calcUTXO prev_utxo (t:tx)   = (prev_utxo `solveTx` t) >>= (`calcUTXO` tx)
     where
         solveTx :: [TxOutput] -> Transaction -> Either NotValidTransaction [TxOutput]
-        solveTx utxo t = (utxo `delBy` (mkInputs t)) >>= (`plusBy` t)
+        solveTx utxo incoming = (utxo `delBy` (mkInputs incoming)) >>= (`plusBy` incoming)
 
         delBy :: [TxOutput] -> [TxInput] -> Either NotValidTransaction [TxOutput]
+        delBy utxo [] = Right utxo
         delBy utxo (t:txin) = case (find (t `eqTx`) utxo) of
             Just a  -> delBy (delete a utxo) txin
             Nothing -> Left NotValidTransaction
 
         plusBy :: [TxOutput] -> Transaction -> Either NotValidTransaction [TxOutput]
-        plusBy utxo t = Right $ utxo ++ (mkOutputs t)
+        plusBy utxo incoming = Right $ utxo ++ (mkOutputs incoming)
         
 --  miscellaneous
 makeBaseURL :: Node -> BaseUrl

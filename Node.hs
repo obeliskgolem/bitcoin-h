@@ -63,6 +63,7 @@ server1 =       serveBlocks
                 then return RegisterFailed
                 else do 
                     liftIO $ writeIORef (eNodes env) (node:nodes) 
+                    liftIO $ writeIORef (eTransactions env) []
                     return RegisterSuccess
 
         handlingNewBlocks :: Block -> AppM RegisterStatus
@@ -143,19 +144,18 @@ mineBlock = do
     blocks <- liftIO $ readIORef (eBlocks env)
     utxo <- liftIO $ readIORef (eUTXO env)
     when (trans /= [] && blocks /= []) $ do
-        liftIO $ putStrLn $ "Mining " ++ (show $ head blocks)
         let t_tree = generateMerkelTree trans
         let t_header = mining (mkHeader (last blocks)) (getMerkelRoot t_tree) 1
         let t_block = Block t_header trans t_tree
         liftIO $ writeIORef (eBlocks env) (blocks ++ [t_block])
         liftIO $ writeIORef (eUTXO env) (fromRight [] (calcUTXO utxo trans))
         liftIO $ writeIORef (eTransactions env) []
-        mapM_ (broadcastNode t_block) nodes
+        mapM_ (broadcastBlock t_block) nodes
         return ()
 
 --  mine a block with current transactions
-broadcastNode :: (MonadIO m) => Block -> Node -> ReaderT Env m ()
-broadcastNode newBlock node = do
+broadcastBlock:: (MonadIO m) => Block -> Node -> ReaderT Env m ()
+broadcastBlock newBlock node = do
     env <- ask
     when (node /= (eSelf env)) $ do
         manager' <- liftIO $ newManager defaultManagerSettings
@@ -168,14 +168,12 @@ runNode port  = do
     nodes <- newIORef ([] :: [Node])
     blocks <- newIORef ([genesisBlock])
     tx <- newIORef ([] :: [Transaction])
-    utxo <- newIORef ([] :: [TxOutput])
+    utxo <- newIORef (mkOutputs (head genesisTransaction))
 
     let env = Env 19900 (Node "localhost" port) nodes blocks tx utxo
 
     runReaderT initRegister env
     runReaderT getBlockChain env
-
-    putStrLn "forked mining IO"
 
     forkIO $ forever $ do
         threadDelay $ 1000000 * 30 

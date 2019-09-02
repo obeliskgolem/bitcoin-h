@@ -42,7 +42,6 @@ server1 nodeList =      listnode nodeList
         register nodeList node = do
             list <- liftIO $ readIORef nodeList 
             let s = if (node `elem` list) then list else (node:list)
-            liftIO $ putStrLn (show s)
             liftIO $ writeIORef nodeList s
             if (node `notElem` list) then do
                 mapM_ (liftIO . (broadcastNode node)) list
