@@ -137,20 +137,27 @@ getBlockChain = do
 mineBlock :: (MonadIO m) => ReaderT Env m ()
 mineBlock = do
     env <- ask
+    nodes <- liftIO $ readIORef (eNodes env)
     trans <- liftIO $ readIORef (eTransactions env)
     blocks <- liftIO $ readIORef (eBlocks env)
     utxo <- liftIO $ readIORef (eUTXO env)
     when (trans /= [] && blocks /= []) $ do
         let t_tree = generateMerkelTree trans
         let t_header = mining (mkHeader (last blocks)) (getMerkelRoot t_tree) 1
-        let t_node = Block t_header trans t_tree
-        liftIO $ writeIORef (eBlocks env) (blocks ++ [t_node])
+        let t_block = Block t_header trans t_tree
+        liftIO $ writeIORef (eBlocks env) (blocks ++ [t_block])
         liftIO $ writeIORef (eUTXO env) (fromRight [] (calcUTXO utxo trans))
         liftIO $ writeIORef (eTransactions env) []
-        -- broadcastNode t_node
+        mapM (broadcastNode t_block) nodes
+        return ()
 
 --  mine a block with current transactions
--- broadcastNode :: (MonadIO m) => ReaderT Env m ()
+broadcastNode :: (MonadIO m) => Block -> Node -> ReaderT Env m ()
+broadcastNode newBlock node = do
+    env <- ask
+    manager' <- liftIO $ newManager defaultManagerSettings
+    liftIO $ runClientM (updateBlocks newBlock) ((mkClientEnv manager' (makeBaseURL node)))
+    return ()
 
 --  serving as node         --
 runNode :: Int -> IO ()
@@ -167,6 +174,8 @@ runNode port  = do
     runReaderT initRegister env
     runReaderT getBlockChain env
 
-    forever $ forkIO $ runReaderT mineBlock env
+    forever $ forkIO $ do
+        threadDelay $ 1000000 * 30 
+        runReaderT mineBlock env
 
     run port (app1 env)

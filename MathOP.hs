@@ -220,3 +220,6 @@ calcUTXO prev_utxo (t:tx)   = (prev_utxo `solveTx` t) >>= (`calcUTXO` tx)
         plusBy :: [TxOutput] -> Transaction -> Either NotValidTransaction [TxOutput]
         plusBy utxo t = Right $ utxo ++ (mkOutputs t)
         
+--  miscellaneous
+makeBaseURL :: Node -> BaseUrl
+makeBaseURL node = BaseUrl Http (mkNodeAddr node) (mkNodePort node) ""
